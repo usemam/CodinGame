@@ -8,58 +8,39 @@ open System
 
 [<EntryPoint>]
 let main argv =
-
-    let directions =
-        [
-            ("N", fun (x, y) -> (x, y-1));
-            ("NE", fun (x, y) -> (x+1, y-1));
-            ("E", fun (x, y) -> (x+1, y));
-            ("SE", fun (x, y) -> (x+1, y+1));
-            ("S", fun (x, y) -> (x, y+1));
-            ("SW", fun (x, y) -> (x-1, y+1));
-            ("W", fun (x, y) -> (x-1, y));
-            ("NW", fun (x, y) -> (x-1, y-1))
-        ]
     
-    let isValidPoint (x, y) = (x > -1 && x < 40) && (y > -1 && y < 18)
+    let take n lst =
+        let rec takeInner n source res =
+            if n <= 0 then res else
+                match source with
+                | [] -> res
+                | x::xs -> takeInner (n-1) xs (x::res)
+        takeInner n lst []
 
-    let delta (x1, y1) (x2, y2) =
-        let square x = x * x
-        sqrt(((x2-x1) |> float |> square) + ((y2-y1) |> float |> square))
-    
-    let getSiblingPoints point target =
-        directions
-        |> List.map (fun (name, f) -> (name, f point))
-        |> List.filter (fun (name, p) -> isValidPoint p)
-        |> List.map (fun (name, p) -> (name, p, delta p target))
+    let groupBy f lst =
+        lst
+        |> List.fold (fun group x ->
+            match group |> Map.tryFind (f x) with
+            | Some(s) -> group |> Map.remove (f x) |> Map.add (f x) (x::s)
+            | None -> group |> Map.add (f x) [x]
+            ) Map.empty
+        |> Map.toList
 
-    let fst3 (f, _, _) = f
-    let snd3 (_, s, _) = s
-    let thrd (_, _, t) = t
-        
-    
-    (* lightX: the X position of the light of power *)
-    (* lightY: the Y position of the light of power *)
-    (* initialTX: Thor's starting X position *)
-    (* initialTY: Thor's starting Y position *)
-    let token = (Console.In.ReadLine()).Split [|' '|]
-    let lightX = int(token.[0])
-    let lightY = int(token.[1])
-    let initialTX = int(token.[2])
-    let initialTY = int(token.[3])
-    let light = (lightX, lightY)
-    let mutable current = (initialTX, initialTY)
-    (* game loop *)
-    while true do
-        let remainingTurns = int(Console.In.ReadLine()) (* The remaining amount of turns Thor can move. Do not remove this line. *)
-    
-        (* Write an action using printfn *)
-        (* To debug: Console.Error.WriteLine("Debug message") *)
-        let siblings = getSiblingPoints current light
-        let next = siblings |> List.minBy (fun (name, p, d) -> d)
+    let readTemps n =
+        let temps = Console.In.ReadLine()
+        temps.Split([|' '|]) |> List.ofArray |> take n |> List.map (fun s -> int(s))
 
-        (* A single line providing the move to be made: N NE E SE S SW W or NW *)
-        printfn "%s" (fst3 next)
+    let groupTemps temps =
+        temps |> groupBy (fun x -> abs(x))
 
-        current <- snd3 next
+    let n = int(Console.In.ReadLine()) (* the number of temperatures to analyse *)
+    if n > 0 then
+        let temps = readTemps n (* the n temperatures expressed as integers ranging from -273 to 5526 *)
+
+        let closestGroup = temps |> groupTemps |> List.minBy (fun (x, _) -> x)
+
+        printfn "%d"
+            (closestGroup |> fun (x, xs) -> xs |> List.max)
+    else
+        printfn "0"
     0
