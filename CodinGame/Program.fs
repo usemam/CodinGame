@@ -1,43 +1,78 @@
-﻿(* The while loop represents the game. *)
-(* Each iteration represents a turn of the game *)
-(* where you are given inputs (the heights of the mountains) *)
-(* and where you have to print an output (the index of the mountain to fire on) *)
-(* The inputs you are given are automatically updated according to your last actions. *)
+﻿(* Auto-generated code below aims at helping you parse *)
+(* the standard input according to the problem statement. *)
 open System
-
 
 [<EntryPoint>]
 let main argv =
+    
+    let replicate n x =
+        let rec replicateInner n l =
+            match n > 0 with
+            | true -> replicateInner (n-1) (x::l)
+            | false -> l
+        replicateInner n []
 
-    let L = int(Console.In.ReadLine())
-    let H = int(Console.In.ReadLine())
-    let T = Console.In.ReadLine()
-    let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ?"
+    let tail l =
+        match l with
+        | [] -> failwith "tail of empty list."
+        | _::xs -> xs
 
-    let getLetterLine (index:int) (row:string) =
-        row.[L*index..L*(index+1)-1]
+    let tryHead l =
+        match l with
+        | [] -> None
+        | x::_ -> Some(x)
 
-    let foldRow row rowIndex board =
-        alphabet |> Seq.fold (
-            fun state letter ->
-                let letterIndex = alphabet |> Seq.findIndex (fun c -> c = letter)
-                state |> Map.add (letter, rowIndex) (getLetterLine letterIndex row)
-            ) board
+    let add symbol acc =
+        match acc with
+        | [] -> [(symbol, 1)]
+        | (s, n)::xs ->
+            match symbol = s with
+            | true -> (s, n+1)::xs
+            | false -> (symbol, 1)::(s, n)::xs
 
-    let asciiMap = 
-        [0..H-1] |> List.fold (
-            fun state i ->
-                let row = Console.In.ReadLine()
-                foldRow row i state
-            ) Map.empty
+    let rec binaryToInternal bin acc =
+        let h = tryHead bin
+        match h with
+        | Some(s) -> add s acc |> binaryToInternal (tail bin)
+        | None -> acc
 
-    let printAscii c i =
-        match asciiMap |> Map.tryFind (c |> Char.ToUpper, i) with
-            | Some(s) -> printf "%s" s
-            | None -> printf "%s" (Map.find ('?', i) asciiMap)
+    let toUnary (s, n) =
+        let prefix =
+            match s with
+            | '0' -> "00"
+            | '1' -> "0"
+            | _ -> failwith "unexpected value"
+        let value = replicate n '0' |> String.Concat
+        prefix + " " + value
 
-    [0..H-1] |> List.iter (fun i ->
-        T |> Seq.iter (fun c -> printAscii c i)
-        Console.Out.WriteLine())
+    let intToBinary i =
+        let rec intToBinary' i =
+            match i with
+            | 0 | 1 -> string i
+            | _ ->
+                let bit = string (i%2)
+                (intToBinary' (i/2)) + bit
+        let bin = intToBinary' i
+        let binLength = String.length bin
+        match binLength = 7 with
+        | true -> bin
+        | false -> ((replicate (7 - binLength) '0') |> String.Concat) + bin
 
+    let message = Console.In.ReadLine()
+    let messageAsBinary =
+        message
+            |> Seq.map int
+            |> Seq.map intToBinary
+            |> String.Concat
+    
+    let unary =
+        binaryToInternal (Seq.toList messageAsBinary) []
+        |> List.rev
+        |> Seq.fold (fun s x -> s + " " + (toUnary x)) String.Empty
+        |> Seq.skip 1
+        |> String.Concat
+
+    printfn "%s" unary
+    let enter = Console.In.ReadLine()
+    
     0
