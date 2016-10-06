@@ -5,74 +5,46 @@ open System
 [<EntryPoint>]
 let main argv =
     
-    let replicate n x =
-        let rec replicateInner n l =
-            match n > 0 with
-            | true -> replicateInner (n-1) (x::l)
-            | false -> l
-        replicateInner n []
-
     let tail l =
         match l with
-        | [] -> failwith "tail of empty list."
-        | _::xs -> xs
+        | [] -> failwith "tail on empty list"
+        | x::xs -> xs
 
-    let tryHead l =
+    let rec tryLast l =
         match l with
         | [] -> None
-        | x::_ -> Some(x)
+        | [x] -> Some(x)
+        | x::xs -> tryLast xs
 
-    let add symbol acc =
-        match acc with
-        | [] -> [(symbol, 1)]
-        | (s, n)::xs ->
-            match symbol = s with
-            | true -> (s, n+1)::xs
-            | false -> (symbol, 1)::(s, n)::xs
+    let readTable n =
+        [0..n-1]
+            |> List.fold (fun t i ->
+                (* EXT: file extension *)
+                (* MT: MIME type. *)
+                let token = (Console.In.ReadLine()).Split [|' '|]
+                let EXT = token.[0].ToUpper()
+                let MT = token.[1]
+                match Map.tryFind EXT t with
+                | Some(k) -> t
+                | None -> Map.add EXT MT t) Map.empty
 
-    let rec binaryToInternal bin acc =
-        let h = tryHead bin
-        match h with
-        | Some(s) -> add s acc |> binaryToInternal (tail bin)
-        | None -> acc
+    let getFileExt (fileName:string) =
+        let nameChunks = fileName.Split [|'.'|] |> Seq.toList |> tail
+        match tryLast nameChunks with
+        | Some(s) -> s
+        | None -> String.Empty
 
-    let toUnary (s, n) =
-        let prefix =
-            match s with
-            | '0' -> "00"
-            | '1' -> "0"
-            | _ -> failwith "unexpected value"
-        let value = replicate n '0' |> String.Concat
-        prefix + " " + value
+    let N = int(Console.In.ReadLine()) (* Number of elements which make up the association table. *)
+    let Q = int(Console.In.ReadLine()) (* Number Q of file names to be analyzed. *)
+    let table = readTable N
 
-    let intToBinary i =
-        let rec intToBinary' i =
-            match i with
-            | 0 | 1 -> string i
-            | _ ->
-                let bit = string (i%2)
-                (intToBinary' (i/2)) + bit
-        let bin = intToBinary' i
-        let binLength = String.length bin
-        match binLength = 7 with
-        | true -> bin
-        | false -> ((replicate (7 - binLength) '0') |> String.Concat) + bin
+    [0..Q-1]
+        |> List.iter (fun i ->
+            let FNAME = Console.In.ReadLine().ToUpper() (* One file name per line. *)
+            match Map.tryFind (getFileExt FNAME) table with
+            | Some(s) -> printfn "%s" s
+            | None -> printfn "UNKNOWN")
 
-    let message = Console.In.ReadLine()
-    let messageAsBinary =
-        message
-            |> Seq.map int
-            |> Seq.map intToBinary
-            |> String.Concat
-    
-    let unary =
-        binaryToInternal (Seq.toList messageAsBinary) []
-        |> List.rev
-        |> Seq.fold (fun s x -> s + " " + (toUnary x)) String.Empty
-        |> Seq.skip 1
-        |> String.Concat
-
-    printfn "%s" unary
     let enter = Console.In.ReadLine()
     
     0
