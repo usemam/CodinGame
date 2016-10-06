@@ -2,48 +2,56 @@
 (* the standard input according to the problem statement. *)
 open System
 
+let pi = 3.14
+
+let degToRad (x:float) = x*pi/180.0
+
+type Point =
+    {Number:int; Name:string; Address:string; Phone:string; Long:float; Lat:float}
+type Point with
+    member a.distance b =
+        let aLong = degToRad a.Long
+        let bLong = degToRad b.Long
+        let aLat = degToRad a.Lat
+        let bLat = degToRad b.Lat
+        let x = (bLong - aLong)*cos((aLat + bLat)/2.0)
+        let y = bLat - aLat
+        sqrt(x*x + y*y)*6371.0
+
 [<EntryPoint>]
 let main argv =
     
-    let tail l =
-        match l with
-        | [] -> failwith "tail on empty list"
-        | x::xs -> xs
+    let arrayToPoint (arr:string []) =
+        {
+            Name = arr.[1];
+            Number = arr.[0] |> int;
+            Address = arr.[2];
+            Phone = arr.[3];
+            Long = arr.[4] |> Convert.ToDouble;
+            Lat = arr.[5] |> Convert.ToDouble
+        }
 
-    let rec tryLast l =
-        match l with
-        | [] -> None
-        | [x] -> Some(x)
-        | x::xs -> tryLast xs
+    let LON = Console.In.ReadLine() |> Convert.ToDouble
+    let LAT = Console.In.ReadLine() |> Convert.ToDouble
 
-    let readTable n =
-        [0..n-1]
-            |> List.fold (fun t i ->
-                (* EXT: file extension *)
-                (* MT: MIME type. *)
-                let token = (Console.In.ReadLine()).Split [|' '|]
-                let EXT = token.[0].ToUpper()
-                let MT = token.[1]
-                match Map.tryFind EXT t with
-                | Some(k) -> t
-                | None -> Map.add EXT MT t) Map.empty
+    let p = {
+        Number = 0;
+        Name = ""
+        Address = "";
+        Phone = "";
+        Long = LON;
+        Lat = LAT}
 
-    let getFileExt (fileName:string) =
-        let nameChunks = fileName.Split [|'.'|] |> Seq.toList |> tail
-        match tryLast nameChunks with
-        | Some(s) -> s
-        | None -> String.Empty
+    let N = int(Console.In.ReadLine())
+    let points =
+        [0..N-1]
+        |> List.map (fun i -> Console.In.ReadLine())
+        |> List.map (fun s -> s.Split [|';'|])
+        |> List.map (fun arr -> arrayToPoint arr)
+    let closest =
+        points |> List.minBy (fun x -> x.distance p)
 
-    let N = int(Console.In.ReadLine()) (* Number of elements which make up the association table. *)
-    let Q = int(Console.In.ReadLine()) (* Number Q of file names to be analyzed. *)
-    let table = readTable N
-
-    [0..Q-1]
-        |> List.iter (fun i ->
-            let FNAME = Console.In.ReadLine().ToUpper() (* One file name per line. *)
-            match Map.tryFind (getFileExt FNAME) table with
-            | Some(s) -> printfn "%s" s
-            | None -> printfn "UNKNOWN")
+    printfn "%s" closest.Name
 
     let enter = Console.In.ReadLine()
     
