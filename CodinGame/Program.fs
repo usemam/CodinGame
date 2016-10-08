@@ -2,56 +2,60 @@
 (* the standard input according to the problem statement. *)
 open System
 
-let pi = 3.14
-
-let degToRad (x:float) = x*pi/180.0
-
-type Point =
-    {Number:int; Name:string; Address:string; Phone:string; Long:float; Lat:float}
-type Point with
-    member a.distance b =
-        let aLong = degToRad a.Long
-        let bLong = degToRad b.Long
-        let aLat = degToRad a.Lat
-        let bLat = degToRad b.Lat
-        let x = (bLong - aLong)*cos((aLat + bLat)/2.0)
-        let y = bLat - aLat
-        sqrt(x*x + y*y)*6371.0
-
 [<EntryPoint>]
 let main argv =
     
-    let arrayToPoint (arr:string []) =
-        {
-            Name = arr.[1];
-            Number = arr.[0] |> int;
-            Address = arr.[2];
-            Phone = arr.[3];
-            Long = arr.[4] |> Convert.ToDouble;
-            Lat = arr.[5] |> Convert.ToDouble
-        }
+    let width = int(Console.In.ReadLine()) (* the number of cells on the X axis *)
+    let height = int(Console.In.ReadLine()) (* the number of cells on the Y axis *)
 
-    let LON = Console.In.ReadLine() |> Convert.ToDouble
-    let LAT = Console.In.ReadLine() |> Convert.ToDouble
+    let findRightNeighbour (x, y) map =
+        let y' =
+            match [y+1..width] |> List.tryFind (fun i ->
+                match Map.tryFind (x, i) map with
+                | Some(1) -> true
+                | Some(_) -> false
+                | None -> false) with
+            | Some(y'') -> y''
+            | None -> -1
+        match y' > -1 with
+        | true -> (x, y')
+        | false -> (-1, -1)
+    
+    let findBottomNeighbour (x, y) map =
+        let x' =
+            match [x+1..height] |> List.tryFind (fun i ->
+                match Map.tryFind (i, y) map with
+                | Some(1) -> true
+                | Some(_) -> false
+                | None -> false) with
+            | Some(x'') -> x''
+            | None -> -1
+        match x' > -1 with
+        | true -> (x', y)
+        | false -> (-1, -1) 
 
-    let p = {
-        Number = 0;
-        Name = ""
-        Address = "";
-        Phone = "";
-        Long = LON;
-        Lat = LAT}
+    let printNodeAndNeighbours (x,y) map =
+        let (x2, y2) = findRightNeighbour (x,y) map
+        let (x3, y3) = findBottomNeighbour (x,y) map
+        printfn "%d %d %d %d %d %d" y x y2 x2 y3 x3
 
-    let N = int(Console.In.ReadLine())
-    let points =
-        [0..N-1]
-        |> List.map (fun i -> Console.In.ReadLine())
-        |> List.map (fun s -> s.Split [|';'|])
-        |> List.map (fun arr -> arrayToPoint arr)
-    let closest =
-        points |> List.minBy (fun x -> x.distance p)
+    let nodes =
+        [0..height-1] |> List.fold (fun s' h ->
+            let line = Console.In.ReadLine()
+            let lineNodes = line.[0..width-1] |> Seq.toList
+            List.fold2 (fun s'' n w ->
+                match n with
+                | '0' -> Map.add (h, w) 1 s''
+                | '.' -> Map.add (h, w) 0 s''
+                | _ -> failwith "unexpected node") s' lineNodes [0..width-1]
+        ) Map.empty
 
-    printfn "%s" closest.Name
+    [0..height-1] |> List.iter (fun h ->
+        [0..width-1] |> List.iter (fun w ->
+            match Map.find (h, w) nodes with
+            | 1 -> printNodeAndNeighbours (h,w) nodes
+            | _ -> ()
+        ))
 
     let enter = Console.In.ReadLine()
     
