@@ -5,58 +5,86 @@ open System
 [<EntryPoint>]
 let main argv =
     
-    let width = int(Console.In.ReadLine()) (* the number of cells on the X axis *)
-    let height = int(Console.In.ReadLine()) (* the number of cells on the Y axis *)
+    let contains i l =
+        l |> List.fold (fun r x -> r || x = i) false
 
-    let findRightNeighbour (x, y) map =
-        let y' =
-            match [y+1..width] |> List.tryFind (fun i ->
-                match Map.tryFind (x, i) map with
-                | Some(1) -> true
-                | Some(_) -> false
-                | None -> false) with
-            | Some(y'') -> y''
-            | None -> -1
-        match y' > -1 with
-        | true -> (x, y')
-        | false -> (-1, -1)
-    
-    let findBottomNeighbour (x, y) map =
-        let x' =
-            match [x+1..height] |> List.tryFind (fun i ->
-                match Map.tryFind (i, y) map with
-                | Some(1) -> true
-                | Some(_) -> false
-                | None -> false) with
-            | Some(x'') -> x''
-            | None -> -1
-        match x' > -1 with
-        | true -> (x', y)
-        | false -> (-1, -1) 
+    let rec lastN n l =
+        match List.length l <= 2 with
+        | true -> l
+        | false -> lastN n l.Tail
 
-    let printNodeAndNeighbours (x,y) map =
-        let (x2, y2) = findRightNeighbour (x,y) map
-        let (x3, y3) = findBottomNeighbour (x,y) map
-        printfn "%d %d %d %d %d %d" y x y2 x2 y3 x3
+    (* N: the total number of nodes in the level, including the gateways *)
+    (* L: the number of links *)
+    (* E: the number of exit gateways *)
+    let token = (Console.In.ReadLine()).Split [|' '|]
+    let N = int(token.[0])
+    let L = int(token.[1])
+    let E = int(token.[2])
 
-    let nodes =
-        [0..height-1] |> List.fold (fun s' h ->
-            let line = Console.In.ReadLine()
-            let lineNodes = line.[0..width-1] |> Seq.toList
-            List.fold2 (fun s'' n w ->
-                match n with
-                | '0' -> Map.add (h, w) 1 s''
-                | '.' -> Map.add (h, w) 0 s''
-                | _ -> failwith "unexpected node") s' lineNodes [0..width-1]
-        ) Map.empty
+    let nodes = [0..N-1]
+    let edges =
+        [0..L-1] |> List.map (fun i ->
+            (* N1: N1 and N2 defines a link between these nodes *)
+            let token1 = (Console.In.ReadLine()).Split [|' '|]
+            let N1 = int(token1.[0])
+            let N2 = int(token1.[1])
+            (N1, N2))
 
-    [0..height-1] |> List.iter (fun h ->
-        [0..width-1] |> List.iter (fun w ->
-            match Map.find (h, w) nodes with
-            | 1 -> printNodeAndNeighbours (h,w) nodes
-            | _ -> ()
-        ))
+    let getAdjacent n =
+        edges |> List.fold (fun l (x, y) ->
+            match x = n with
+            | true -> y::l
+            | false ->
+                match y = n with
+                | true -> x::l
+                | false -> l) []
+    let mutable graph =
+        nodes |> List.fold (fun g i ->
+            Map.add i (getAdjacent i) g) Map.empty
 
-    let enter = Console.In.ReadLine()
-    
+    let gateways =
+        [0..E-1] |> List.fold (fun l i ->
+            let EI = int(Console.In.ReadLine()) (* the index of a gateway node *)
+            EI::l) []
+    let isGateway i =
+        contains i gateways
+
+    let removeEdge g (x, y) =
+        let ex = Map.find x g
+        let ex' = List.filter (fun e -> e <> y) ex
+        let g' = g |> ((Map.remove x) >> (Map.add x ex'))
+        let ey = Map.find y g'
+        let ey' = List.filter (fun e -> e <> x) ey
+        g' |> ((Map.remove y) >> (Map.add y ey'))
+
+    let getShortestPath g n =
+        let rec bfs queue =
+            match List.isEmpty queue with
+            | true -> failwith "Failed to find a path"
+            | false ->
+                let path = List.head queue
+                let current = Seq.last path
+                match isGateway current with
+                | true -> path
+                | false ->
+                    let q' = List.tail queue
+                    let notVisited =
+                        Map.find current g
+                        |> List.filter (fun i -> not (contains i path))
+                    notVisited
+                    |> List.fold (fun q i -> q@[path@[i]]) q'
+                    |> bfs
+        bfs [[n]]
+
+    (* game loop *)
+    while true do
+        let SI = int(Console.In.ReadLine()) (* The index of the node on which the Skynet agent is positioned this turn *)
+
+        let shortest = getShortestPath graph SI
+
+        let [x;y;] = lastN 2 shortest
+        graph <- removeEdge graph (x, y)
+        (* Example: 0 1 are the indices of the nodes you wish to sever the link between *)
+        printfn "%d %d" x y
+        ()
     0
