@@ -8,15 +8,16 @@ let main argv =
     let n = int(Console.In.ReadLine()) (* the number of adjacency relations *)
     let edges =
         [0..n-1]
-        |> List.map (fun i -> Console.In.ReadLine())
+        |> List.map (fun _ -> Console.In.ReadLine())
         |> List.map (fun s -> s.Split [|' '|])
         |> List.map (fun l -> (l.[0] |> int, l.[1] |> int))
 
-    let nodes =
+    let (minNode, maxNode) =
         edges
         |> List.fold (fun l (x, y) -> x::y::l) []
         |> Seq.distinct
-        |> List.ofSeq
+        |> Seq.sort
+        |> (fun s -> (Seq.head s, Seq.last s))
 
     let getAdjacent n =
         edges
@@ -28,40 +29,34 @@ let main argv =
                 | true -> x::l
                 | false -> l) []
     let graph =
-        nodes
-        |> List.fold (fun g i ->
-            Map.add i (getAdjacent i) g) Map.empty
+        [| for i in minNode..maxNode do yield getAdjacent i |]
 
-    let getMostDistantNode g n =
-        let contains i l =
-            List.fold (fun r x -> x = i || r) false l
-        let rec dfs stack paths =
+    let getMostDistantNode (g: int list []) n =
+        let dMap = [| for i in minNode..maxNode do yield 0 |]
+        let rec dfs stack =
             match List.isEmpty stack with
-            | true -> paths
+            | true -> ()
             | false ->
-                let path = List.head stack
-                let (current, distance) = List.head path
-                
-                let visited = path |> List.map (fun (x,_) -> x)
-
+                let current = List.head stack
+                let distance = dMap.[current - minNode]
                 let notVisited =
-                    Map.find current g
-                    |> List.filter (fun x -> not (contains x visited))
-                match List.isEmpty notVisited with
-                | true ->
-                    dfs (List.tail stack) (path::paths)
-                | false ->
-                    let newStack =
-                        List.fold (fun s n -> ((n, distance+1)::path)::s) (List.tail stack) notVisited
-                    dfs newStack paths
+                    g.[current - minNode]
+                    |> List.filter (fun x -> dMap.[x - minNode] = 0)
+                notVisited
+                |> List.iter (fun x -> dMap.[x - minNode] <- distance + 1)
+                let newStack =
+                    notVisited
+                    |> List.fold (fun s x -> x::s) (List.tail stack)
+                dfs newStack
 
-        let paths = dfs [[(n,0)]] []
-        let longestPath =
-            paths |> List.maxBy (fun l -> List.length l)
-        List.head longestPath
+        dfs [n]
+        dMap
+        |> Array.mapi (fun i x -> (i, x))
+        |> Array.maxBy (fun (_, x) -> x)
+        |> fun (i, x) -> (i + minNode, x)
+        
 
-    let startNode = List.head nodes
-    let secondNode = getMostDistantNode graph startNode
+    let secondNode = getMostDistantNode graph minNode
     let thirdNode = getMostDistantNode graph (fst secondNode)
     let graphD = snd thirdNode
     (* The minimal amount of steps required to completely propagate the advertisement *)
